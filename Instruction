@@ -1,0 +1,112 @@
+// Chu de BTL mon Nhap mon CNPM - IT3180
+https://github.com/NgKhacDuy/dgv/blob/master/database.sql
+
+// Tai lieu Java-Springboot:
+https://github.com/loda-kun/spring-boot-learning
+
+// Add new table ratings
+CREATE TABLE ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,        
+    user_id INT NOT NULL,                     
+    movie_id INT NOT NULL,                 
+    rating TINYINT NOT NULL,     
+// Review of user:            
+    review TEXT,                            
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
+    FOREIGN KEY (user_id) REFERENCES users(id),  
+    FOREIGN KEY (movie_id) REFERENCES movies(id) 
+);
+
+// Calculate avg rating for each film:
+select movie_id, AVG(rating) as avarage_rating
+from ratings
+where movie_id = #id_of_the_movie
+group by movie_id
+
+//  Simplicity 
+
+package com.example.web_movie_backend.config;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.metamodel.Type;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.rest.core.config.RepositoryRestConfiguration;
+import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurer;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+
+@Configuration
+public class MethodRestConfig implements RepositoryRestConfigurer {
+
+    @Autowired
+    private EntityManager entityManager;
+
+    private String url = "http://localhost:3000";
+
+    @Override
+    public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config, CorsRegistry cors) {
+	
+        // Expose ID for all entities
+        config.exposeIdsFor(entityManager.getMetamodel().getEntities().stream()
+                .map(Type::getJavaType).toArray(Class[]::new));
+
+        // CORS configuration: allow requests from the specified frontend app
+        cors.addMapping("/**")
+            .allowedOrigins(url) // Frontend URL
+            .allowedMethods("GET", "POST", "PUT", "DELETE") // Allowed methods
+            .allowedHeaders("*")
+            .allowCredentials(true);
+    }
+}
+
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom'; // Import Link để quay về trang chủ
+
+const MovieDetail = () => {
+  const { id } = useParams(); // Lấy movie_id từ URL
+  const [movie, setMovie] = useState(null);
+  const [error, setError] = useState(null); // State để quản lý lỗi
+
+  useEffect(() => {
+    fetch(`http://localhost:8080/movies/${id}`) // Gọi API để lấy thông tin chi tiết của phim
+      .then(response => {
+        if (!response.ok) { // Kiểm tra mã trạng thái
+          throw new Error('Movie not found'); // Nếu không thành công, ném lỗi
+        }
+        return response.json();
+      })
+      .then(data => setMovie(data))
+      .catch(error => {
+        console.error('Error fetching movie:', error);
+        setError(error.message); // Cập nhật state lỗi
+      });
+  }, [id]);
+
+  if (error) { // Nếu có lỗi
+    return (
+      <div>
+        <h1>404 Not Found</h1>
+        <p>{error}</p>
+        <Link to="/">Go back to Home</Link> {/* Nút quay về trang chủ */}
+      </div>
+    );
+  }
+
+  if (!movie) {
+    return <div>Loading...</div>; // Hiển thị loading nếu chưa có dữ liệu
+  }
+
+  return (
+    <div>
+      <h1>{movie.movie_name}</h1>
+      <p>{movie.movie_description}</p>
+      <p>Release Date: {movie.movie_release}</p>
+      <p>Duration: {movie.movie_lenght}</p>
+      {/* Hiển thị các thông tin khác của bộ phim */}
+    </div>
+  );
+};
+
+export default MovieDetail;
+
